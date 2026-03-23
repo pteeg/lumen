@@ -5,9 +5,10 @@ import { getFirestore } from 'firebase/firestore'
 function env(name: keyof ImportMetaEnv): string {
   const v = import.meta.env[name]
   if (v === undefined || v === '') {
-    throw new Error(
-      `Missing ${String(name)}. Copy .env.example to .env.local and add your Firebase web config.`,
-    )
+    const hint = import.meta.env.DEV
+      ? 'Copy .env.example to .env.local and add your Firebase web config.'
+      : 'Add all VITE_FIREBASE_* variables in your host (e.g. Vercel → Settings → Environment Variables), then redeploy.'
+    throw new Error(`Missing ${String(name)}. ${hint}`)
   }
   return v
 }
