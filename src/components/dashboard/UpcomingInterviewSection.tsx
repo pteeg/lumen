@@ -1,0 +1,44 @@
+import type { DashboardUpcomingInterview } from '../../types/dashboard'
+import { DashboardCard } from './DashboardCard'
+import { DashboardSectionLabel } from './DashboardSectionLabel'
+
+type Props = {
+  interview: DashboardUpcomingInterview | null
+}
+
+export function UpcomingInterviewSection({ interview }: Props) {
+  return (
+    <DashboardCard dense className="flex h-full flex-col">
+      <DashboardSectionLabel>Upcoming interview</DashboardSectionLabel>
+
+      {interview ? (
+        <div className="mt-5 flex flex-1 flex-col">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-lg font-semibold tracking-tight text-neutral-900">
+                {interview.name}
+              </p>
+              <p className="mt-1 text-sm text-neutral-600">{interview.organisation}</p>
+              {interview.venue ? (
+                <p className="mt-0.5 text-sm text-neutral-500">{interview.venue}</p>
+              ) : null}
+            </div>
+            {interview.statusLabel ? (
+              <span className="shrink-0 rounded-full border border-neutral-200/90 bg-neutral-50 px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide text-neutral-600">
+                {interview.statusLabel}
+              </span>
+            ) : null}
+          </div>
+          <p className="mt-6 text-sm font-medium text-neutral-800">{interview.dateTimeLabel}</p>
+        </div>
+      ) : (
+        <div className="mt-8 flex flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-neutral-200/90 bg-neutral-50/50 px-4 py-8 text-center">
+          <p className="text-sm font-medium text-neutral-600">No upcoming interviews</p>
+          <p className="mt-1.5 max-w-xs text-xs leading-relaxed text-neutral-500">
+            When you schedule the next conversation, it will appear here.
+          </p>
+        </div>
+      )}
+    </DashboardCard>
+  )
+}

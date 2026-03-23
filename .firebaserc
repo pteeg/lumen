@@ -1,0 +1,6 @@
+{
+  "projects": {
+    "default": "lumen-dev-2a5b9",
+    "prod": "major-project-5a595"
+  }
+}

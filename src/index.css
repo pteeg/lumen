@@ -1,0 +1,26 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    sans-serif;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f9fafb;
+  --color-sidebar: #f3f4f6;
+  --color-border: #e5e7eb;
+  --color-accent: #2563eb;
+  --color-accent-muted: #eff6ff;
+}
+
+@layer base {
+  html {
+    @apply antialiased text-slate-700;
+  }
+
+  body {
+    @apply m-0 min-h-screen bg-white;
+  }
+
+  #root {
+    @apply min-h-screen;
+  }
+}
