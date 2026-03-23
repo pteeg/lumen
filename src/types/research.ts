@@ -50,5 +50,7 @@ export interface ResearchProject {
   title: string
   researchQuestion: string
   subQuestions: string[]
+  /** Optional framing line shown on the dashboard under the main question */
+  researchAim?: string
   aims: string[]
 }

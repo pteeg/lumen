@@ -1,36 +1,72 @@
+import { useMemo } from 'react'
 import {
-  CurrentFocusSection,
   InterviewProgressSection,
-  QuestionBankSnapshotSection,
-  RecentInsightsSection,
   ResearchQuestionSection,
   UpcomingInterviewSection,
 } from '../components/dashboard'
 import { GreetingBar } from '../components/layout/GreetingBar'
-import { mockDashboardData } from '../data/dashboard.mock'
+import { useInterviewGuideWorkspaceContext } from '../context/InterviewGuideWorkspaceContext'
+import { countParticipationRowsByProgress } from '../lib/participationProgressCounts'
+import {
+  formatParticipationInterviewWhen,
+  pickNextUpcomingParticipationRow,
+} from '../lib/participationUpcoming'
+import type {
+  DashboardResearchQuestion,
+  DashboardUpcomingInterview,
+} from '../types/dashboard'
 
 /**
- * Lumen home — calm research desk. Data from mock; swap for store/API later.
+ * Lumen home — research question and interview stats from the interview guide Firestore doc.
  */
 export function Dashboard() {
-  const data = mockDashboardData
+  const {
+    participationRows,
+    researchQuestion: mainResearchQuestion,
+    researchAim,
+    subQuestions,
+    saveDashboardResearchQuestion,
+  } = useInterviewGuideWorkspaceContext()
+
+  const researchQuestion = useMemo(
+    (): DashboardResearchQuestion => ({
+      mainQuestion: mainResearchQuestion,
+      subQuestions,
+      researchAim,
+    }),
+    [mainResearchQuestion, subQuestions, researchAim],
+  )
+
+  const interviewProgressCounts = useMemo(
+    () => countParticipationRowsByProgress(participationRows),
+    [participationRows],
+  )
+
+  const upcomingInterview = useMemo((): DashboardUpcomingInterview | null => {
+    const row = pickNextUpcomingParticipationRow(participationRows)
+    if (!row) return null
+    const dateTimeLabel = formatParticipationInterviewWhen(row.interviewDateTime)
+    if (!dateTimeLabel) return null
+    return {
+      id: row.id,
+      name: row.name,
+      location: row.location.trim() || undefined,
+      dateTimeLabel,
+      statusLabel: row.progress.trim() || undefined,
+    }
+  }, [participationRows])
 
   return (
     <div className="space-y-8 md:space-y-10">
       <GreetingBar />
-      <ResearchQuestionSection data={data.researchQuestion} />
+      <ResearchQuestionSection
+        data={researchQuestion}
+        onSave={saveDashboardResearchQuestion}
+      />
 
-      <CurrentFocusSection data={data.currentFocus} />
+      <InterviewProgressSection progressCounts={interviewProgressCounts} />
 
-      <div className="grid gap-6 md:grid-cols-2 md:gap-8 lg:gap-10">
-        <InterviewProgressSection data={data.interviewProgress} />
-        <QuestionBankSnapshotSection data={data.questionBank} />
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-2 md:gap-8 lg:gap-10">
-        <RecentInsightsSection insights={data.insights} />
-        <UpcomingInterviewSection interview={data.upcomingInterview} />
-      </div>
+      <UpcomingInterviewSection interview={upcomingInterview} />
     </div>
   )
 }

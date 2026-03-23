@@ -1,0 +1,1 @@
+export { WriteUpPageTabs } from './WriteUpPageTabs'

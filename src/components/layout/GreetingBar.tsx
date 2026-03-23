@@ -12,7 +12,9 @@ export function GreetingBar() {
         <p className="text-2xl font-semibold tracking-tight text-neutral-900 md:text-3xl">
           Hi, Toby!
         </p>
-        <p className="text-sm text-neutral-500">Your research workspace</p>
+        <p className="text-sm text-neutral-500">
+          {"Let's illuminate the world!"}
+        </p>
       </div>
     </div>
   )

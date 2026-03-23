@@ -10,11 +10,14 @@ const tabClass = ({ isActive }: { isActive: boolean }) =>
 export function InterviewPageTabs() {
   return (
     <div className="mb-6 flex gap-8 md:mb-7">
-      <NavLink to="/interviews/overview" className={tabClass}>
+      <NavLink to="/interviews" end className={tabClass}>
         Overview
       </NavLink>
-      <NavLink to="/interviews" end className={tabClass}>
+      <NavLink to="/interviews/structure" className={tabClass}>
         Structure
+      </NavLink>
+      <NavLink to="/interviews/participation" className={tabClass}>
+        Participation
       </NavLink>
     </div>
   )

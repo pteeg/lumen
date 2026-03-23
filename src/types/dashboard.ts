@@ -9,37 +9,13 @@ export interface DashboardResearchQuestion {
   researchAim?: string
 }
 
-export interface DashboardCurrentFocus {
-  /** Short label shown prominently */
-  label: string
-  /** Optional supporting line */
-  description?: string
-}
-
-export interface DashboardInterviewProgress {
-  planned: number
-  completed: number
-  analysed: number
-}
-
-export interface DashboardQuestionBank {
-  total: number
-  refined: number
-  final: number
-}
-
-export interface DashboardInsight {
-  id: string
-  text: string
-  /** Optional display date, e.g. "2 days ago" */
-  createdAtLabel?: string
-}
-
 export interface DashboardUpcomingInterview {
   id: string
   name: string
-  organisation: string
-  venue?: string
+  /** Optional secondary line (e.g. organisation) */
+  organisation?: string
+  /** Where the interview takes place */
+  location?: string
   /** Pre-formatted for display */
   dateTimeLabel: string
   statusLabel?: string
@@ -47,9 +23,4 @@ export interface DashboardUpcomingInterview {
 
 export interface DashboardData {
   researchQuestion: DashboardResearchQuestion
-  currentFocus: DashboardCurrentFocus
-  interviewProgress: DashboardInterviewProgress
-  questionBank: DashboardQuestionBank
-  insights: DashboardInsight[]
-  upcomingInterview: DashboardUpcomingInterview | null
 }

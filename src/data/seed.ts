@@ -6,12 +6,8 @@ import type {
 
 export const seedProject: ResearchProject = {
   title: 'Peer-to-peer accommodation and platform trust',
-  researchQuestion:
-    'How do informal networks and platform affordances shape trust and booking decisions in peer-to-peer short-term lets?',
-  subQuestions: [
-    'When do hosts and guests prefer informal referrals over platforms?',
-    'How are risks perceived when booking outside mainstream channels?',
-  ],
+  researchQuestion: '',
+  subQuestions: [],
   aims: [
     'Map decision pathways from discovery to booking.',
     'Relate interview narratives to platform governance themes.',

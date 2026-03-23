@@ -7,9 +7,13 @@ import {
   parseInterviewGuideFromFirestore,
   serializeInterviewGuideState,
 } from '../lib/interviewGuideFirestore'
+import type { DashboardResearchQuestion } from '../types/dashboard'
+import { emptyWriteUpContent, type WriteUpSectionId } from '../lib/writeUpSections'
 import type {
   InterviewGuideQuestion,
   InterviewGuideSection,
+  InterviewGuideThought,
+  InterviewParticipationRow,
 } from '../types/interviewGuide'
 
 const FIRESTORE_SYNC_ENABLED =
@@ -32,10 +36,26 @@ function sortQuestions(q: InterviewGuideQuestion[]) {
   return [...q].sort((a, b) => a.order - b.order)
 }
 
+function sortThoughts(t: InterviewGuideThought[]) {
+  return [...t].sort((a, b) => a.order - b.order)
+}
+
+function sortParticipation(p: InterviewParticipationRow[]) {
+  return [...p].sort((a, b) => a.order - b.order)
+}
+
 export function useInterviewGuideWorkspace() {
   const [guideTitle, setGuideTitle] = useState('Venue Interview Guide')
   const [sections, setSections] = useState<InterviewGuideSection[]>([])
   const [questions, setQuestions] = useState<InterviewGuideQuestion[]>([])
+  const [thoughts, setThoughts] = useState<InterviewGuideThought[]>([])
+  const [participationRows, setParticipationRows] = useState<
+    InterviewParticipationRow[]
+  >([])
+  const [researchQuestion, setResearchQuestion] = useState('')
+  const [researchAim, setResearchAim] = useState<string | undefined>(undefined)
+  const [subQuestions, setSubQuestions] = useState<string[]>([])
+  const [writeUpContent, setWriteUpContent] = useState(emptyWriteUpContent)
 
   const [firestoreSyncStatus, setFirestoreSyncStatus] = useState<
     'loading' | 'ready' | 'error'
@@ -112,14 +132,42 @@ export function useInterviewGuideWorkspace() {
               guideTitle: 'Venue Interview Guide',
               sections: [] as InterviewGuideSection[],
               questions: [] as InterviewGuideQuestion[],
+              thoughts: [] as InterviewGuideThought[],
+              participationRows: [] as InterviewParticipationRow[],
+              researchQuestion: '',
+              subQuestions: [] as string[],
+              researchAim: undefined as string | undefined,
+              writeUpContent: emptyWriteUpContent(),
             }
         setGuideTitle(parsed.guideTitle)
         setSections(parsed.sections)
         setQuestions(parsed.questions)
+        setThoughts(parsed.thoughts)
+        setParticipationRows(
+          parsed.participationRows.map((r) => {
+            const pt = (r as { participantTypes?: unknown }).participantTypes
+            return {
+              ...r,
+              participantTypes: Array.isArray(pt)
+                ? pt.filter((t): t is string => typeof t === 'string')
+                : [],
+            }
+          }),
+        )
+        setResearchQuestion(parsed.researchQuestion)
+        setSubQuestions(parsed.subQuestions)
+        setResearchAim(parsed.researchAim)
+        setWriteUpContent(parsed.writeUpContent)
         lastSavedSerialized.current = serializeInterviewGuideState(
           parsed.guideTitle,
           parsed.sections,
           parsed.questions,
+          parsed.thoughts,
+          parsed.participationRows,
+          parsed.researchQuestion,
+          parsed.subQuestions,
+          parsed.researchAim,
+          parsed.writeUpContent,
         )
         setFirestoreSyncStatus('ready')
         setFirestoreError(null)
@@ -144,6 +192,12 @@ export function useInterviewGuideWorkspace() {
       guideTitle,
       sections,
       questions,
+      thoughts,
+      participationRows,
+      researchQuestion,
+      subQuestions,
+      researchAim,
+      writeUpContent,
     )
     if (serialized === lastSavedSerialized.current) return
 
@@ -153,6 +207,12 @@ export function useInterviewGuideWorkspace() {
         guideTitle,
         sections,
         questions,
+        thoughts,
+        participationRows,
+        researchQuestion,
+        subQuestions,
+        researchAim: researchAim ?? '',
+        writeUpContent,
         updatedAt: serverTimestamp(),
       })
         .then(() => {
@@ -174,9 +234,22 @@ export function useInterviewGuideWorkspace() {
     guideTitle,
     sections,
     questions,
+    thoughts,
+    participationRows,
+    researchQuestion,
+    subQuestions,
+    researchAim,
+    writeUpContent,
   ])
 
   const sectionsSorted = useMemo(() => sortSections(sections), [sections])
+
+  const thoughtsSorted = useMemo(() => sortThoughts(thoughts), [thoughts])
+
+  const participationRowsSorted = useMemo(
+    () => sortParticipation(participationRows),
+    [participationRows],
+  )
 
   const questionsInSelectedSection = useMemo(() => {
     if (!selectedSectionId) return []
@@ -208,6 +281,7 @@ export function useInterviewGuideWorkspace() {
         id: newId('sec'),
         title: trimmed,
         order: maxOrder + 1,
+        notes: '',
       }
       setSections((prev) => sortSections([...prev, sec]))
       setSelectedSectionId(sec.id)
@@ -217,7 +291,10 @@ export function useInterviewGuideWorkspace() {
   )
 
   const updateSection = useCallback(
-    (id: string, patch: Partial<Pick<InterviewGuideSection, 'title' | 'order'>>) => {
+    (
+      id: string,
+      patch: Partial<Pick<InterviewGuideSection, 'title' | 'order' | 'notes'>>,
+    ) => {
       setSections((prev) =>
         prev.map((s) => (s.id === id ? { ...s, ...patch } : s)),
       )
@@ -314,6 +391,126 @@ export function useInterviewGuideWorkspace() {
     setSelectedQuestionId((cur) => (cur === id ? null : cur))
   }, [])
 
+  const addThought = useCallback(
+    (text: string) => {
+      const trimmed = text.trim()
+      if (!trimmed) return
+      const maxOrder = thoughts.reduce((m, t) => Math.max(m, t.order), -1)
+      const item: InterviewGuideThought = {
+        id: newId('thought'),
+        text: trimmed,
+        order: maxOrder + 1,
+      }
+      setThoughts((prev) => [...prev, item])
+    },
+    [thoughts],
+  )
+
+  const updateThought = useCallback(
+    (id: string, patch: Partial<Pick<InterviewGuideThought, 'text' | 'order'>>) => {
+      setThoughts((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, ...patch } : t)),
+      )
+    },
+    [],
+  )
+
+  const deleteThought = useCallback((id: string) => {
+    if (!window.confirm('Delete this thought?')) return
+    setThoughts((prev) => {
+      const next = prev.filter((t) => t.id !== id)
+      return sortThoughts(next).map((t, i) => ({ ...t, order: i }))
+    })
+  }, [])
+
+  const reorderThoughts = useCallback((orderedIds: string[]) => {
+    setThoughts((prev) => {
+      const orderMap = new Map(orderedIds.map((tid, index) => [tid, index]))
+      return prev.map((t) => {
+        const ord = orderMap.get(t.id)
+        if (ord === undefined) return t
+        return { ...t, order: ord }
+      })
+    })
+  }, [])
+
+  const addParticipationRow = useCallback(
+    (payload: {
+      name: string
+      participantTypes: string[]
+      notes: string
+      progress: string
+      interviewDateTime: string
+      location: string
+    }) => {
+      const trimmedName = payload.name.trim()
+      if (!trimmedName) return
+      const maxOrder = participationRows.reduce((m, r) => Math.max(m, r.order), -1)
+      const row: InterviewParticipationRow = {
+        id: newId('part'),
+        name: trimmedName,
+        participantTypes: payload.participantTypes,
+        notes: payload.notes,
+        progress: payload.progress,
+        interviewDateTime: payload.interviewDateTime,
+        location: payload.location,
+        order: maxOrder + 1,
+      }
+      setParticipationRows((prev) => [...prev, row])
+    },
+    [participationRows],
+  )
+
+  const updateParticipationRow = useCallback(
+    (
+      id: string,
+      patch: Partial<
+        Pick<
+          InterviewParticipationRow,
+          | 'name'
+          | 'participantTypes'
+          | 'notes'
+          | 'progress'
+          | 'interviewDateTime'
+          | 'location'
+          | 'order'
+        >
+      >,
+    ) => {
+      setParticipationRows((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, ...patch } : r)),
+      )
+    },
+    [],
+  )
+
+  const deleteParticipationRow = useCallback((id: string) => {
+    if (!window.confirm('Delete this row?')) return
+    setParticipationRows((prev) => {
+      const next = prev.filter((r) => r.id !== id)
+      return sortParticipation(next).map((r, i) => ({ ...r, order: i }))
+    })
+  }, [])
+
+  const saveDashboardResearchQuestion = useCallback(
+    (next: DashboardResearchQuestion) => {
+      const main = next.mainQuestion.trim()
+      if (!main) return
+      setResearchQuestion(main)
+      setSubQuestions([...(next.subQuestions ?? [])])
+      const aim = next.researchAim?.trim()
+      setResearchAim(aim || undefined)
+    },
+    [],
+  )
+
+  const setWriteUpSectionContent = useCallback(
+    (id: WriteUpSectionId, value: string) => {
+      setWriteUpContent((prev) => ({ ...prev, [id]: value }))
+    },
+    [],
+  )
+
   const duplicateQuestion = useCallback((id: string) => {
     let newQuestionId: string | null = null
     setQuestions((prev) => {
@@ -351,6 +548,8 @@ export function useInterviewGuideWorkspace() {
     setGuideTitle,
     sections: sectionsSorted,
     questions,
+    thoughts: thoughtsSorted,
+    participationRows: participationRowsSorted,
     questionsInSelectedSection,
     selectedSectionId,
     selectedQuestion,
@@ -366,6 +565,19 @@ export function useInterviewGuideWorkspace() {
     updateQuestion,
     deleteQuestion,
     duplicateQuestion,
+    addThought,
+    updateThought,
+    deleteThought,
+    reorderThoughts,
+    addParticipationRow,
+    updateParticipationRow,
+    deleteParticipationRow,
+    researchQuestion,
+    researchAim,
+    subQuestions,
+    saveDashboardResearchQuestion,
+    writeUpContent,
+    setWriteUpSectionContent,
     selectSection,
     selectQuestion,
   }

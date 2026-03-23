@@ -6,12 +6,15 @@ export function Dialog({
   onClose,
   children,
   footer,
+  panelClassName,
 }: {
   open: boolean
   title: string
   onClose: () => void
   children: ReactNode
   footer?: ReactNode
+  /** Replaces default max width when set (e.g. max-w-lg) */
+  panelClassName?: string
 }) {
   useEffect(() => {
     if (!open) return
@@ -36,8 +39,8 @@ export function Dialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="dialog-title"
-        className="relative w-full max-w-md rounded-[1.25rem] border border-neutral-200/80 bg-white p-6 shadow-xl"
-      >
+        className={`relative w-full rounded-[1.25rem] border border-neutral-200/80 bg-white p-6 shadow-xl ${panelClassName?.trim() ? panelClassName : 'max-w-md'}`}
+    >
         <h2
           id="dialog-title"
           className="text-lg font-semibold tracking-tight text-neutral-900"

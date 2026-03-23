@@ -1,9 +1,6 @@
 import { Outlet } from 'react-router-dom'
 import { InterviewPageTabs } from '../../components/interviewGuide'
-import {
-  InterviewGuideWorkspaceProvider,
-  useInterviewGuideWorkspaceContext,
-} from '../../context/InterviewGuideWorkspaceContext'
+import { useInterviewGuideWorkspaceContext } from '../../context/InterviewGuideWorkspaceContext'
 
 function InterviewGuideFirestoreStatus() {
   const { firestoreSyncStatus, firestoreError } =
@@ -40,9 +37,5 @@ function InterviewsLayoutInner() {
 }
 
 export function InterviewsLayout() {
-  return (
-    <InterviewGuideWorkspaceProvider>
-      <InterviewsLayoutInner />
-    </InterviewGuideWorkspaceProvider>
-  )
+  return <InterviewsLayoutInner />
 }

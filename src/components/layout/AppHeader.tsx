@@ -1,7 +1,9 @@
 import { NavLink } from 'react-router-dom'
+import { HeaderWordProgress } from './HeaderWordProgress'
 
 const nav = [
   { to: '/', label: 'Dashboard', end: true },
+  { to: '/thesis', label: 'Thesis', end: false },
   { to: '/interviews', label: 'Interviews', end: false },
   { to: '/findings', label: 'Findings', end: false },
   { to: '/write-up', label: 'Write up', end: false },
@@ -47,8 +49,7 @@ export function AppHeader() {
           ))}
         </nav>
 
-        {/* Spacer keeps centred nav balanced with the logo on the left */}
-        <div className="hidden shrink-0 md:block md:w-24" aria-hidden />
+        <HeaderWordProgress />
       </div>
 
       <nav
