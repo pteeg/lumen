@@ -48,7 +48,7 @@ export function ResearchQuestionSection({ data, onSave }: Props) {
   }
 
   return (
-    <DashboardCard>
+    <DashboardCard surface="transparent">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <DashboardSectionLabel>Research question</DashboardSectionLabel>
         {onSave ? (
@@ -64,11 +64,11 @@ export function ResearchQuestionSection({ data, onSave }: Props) {
       </div>
 
       {data.mainQuestion.trim() ? (
-        <h1 className="mt-4 w-full min-w-0 max-w-none text-2xl font-semibold leading-snug tracking-tight text-neutral-900 md:text-[1.75rem] md:leading-[1.35]">
+        <h1 className="mt-4 w-full min-w-0 max-w-none text-3xl font-semibold leading-snug tracking-tight text-neutral-900 md:text-4xl md:leading-[1.28] lg:text-[2.5rem] lg:leading-[1.25]">
           {data.mainQuestion}
         </h1>
       ) : (
-        <p className="mt-4 w-full min-w-0 text-pretty text-base leading-relaxed text-neutral-500 md:text-lg">
+        <p className="mt-4 w-full min-w-0 text-pretty text-lg leading-relaxed text-neutral-500 md:text-xl">
           No research question yet. Use Add to enter your main question, aim, and
           sub-questions.
         </p>

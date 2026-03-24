@@ -3,6 +3,7 @@ import { HeaderWordProgress } from './HeaderWordProgress'
 
 const nav = [
   { to: '/', label: 'Dashboard', end: true },
+  { to: '/tasks', label: 'Tasks', end: true },
   { to: '/thesis', label: 'Thesis', end: false },
   { to: '/interviews', label: 'Interviews', end: false },
   { to: '/findings', label: 'Findings', end: false },
@@ -23,7 +24,7 @@ export function AppHeader() {
             className="h-11 w-auto shrink-0 -translate-y-1.5 object-contain md:h-12"
           />
           <span className="truncate text-xl font-semibold tracking-tight text-neutral-900 md:text-2xl">
-            Lumen
+            Lumos
           </span>
         </NavLink>
 

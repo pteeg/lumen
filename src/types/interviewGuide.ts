@@ -29,6 +29,7 @@ export const PARTICIPATION_TYPE_OPTIONS = [
   'Promoter',
   'Artist and booker',
   'Booker (employed)',
+  'Manager',
 ] as const
 
 export type ParticipationTypeOption = (typeof PARTICIPATION_TYPE_OPTIONS)[number]

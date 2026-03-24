@@ -6,9 +6,14 @@ import { DashboardStatItem } from './DashboardStatItem'
 type Props = {
   /** Counts for each participation progress stage, in display order */
   progressCounts: { label: string; count: number }[]
+  /** When false, hides the “See all” link (e.g. on the participation page). */
+  showSeeAllLink?: boolean
 }
 
-export function InterviewProgressSection({ progressCounts }: Props) {
+export function InterviewProgressSection({
+  progressCounts,
+  showSeeAllLink = true,
+}: Props) {
   const total = progressCounts.reduce((s, { count }) => s + count, 0)
 
   return (
@@ -19,12 +24,14 @@ export function InterviewProgressSection({ progressCounts }: Props) {
           <p className="text-sm tabular-nums text-neutral-500">
             {total} participant{total === 1 ? '' : 's'}
           </p>
-          <Link
-            to="/interviews/participation"
-            className="shrink-0 text-sm font-medium text-neutral-700 underline decoration-neutral-400 underline-offset-2 transition hover:text-neutral-900 hover:decoration-neutral-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-          >
-            See all
-          </Link>
+          {showSeeAllLink ? (
+            <Link
+              to="/interviews/participation"
+              className="shrink-0 text-sm font-medium text-neutral-700 underline decoration-neutral-400 underline-offset-2 transition hover:text-neutral-900 hover:decoration-neutral-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+            >
+              See all
+            </Link>
+          ) : null}
         </div>
       </div>
 

@@ -1,4 +1,5 @@
 import { useWriteUpBodyWordStats } from '../../context/WriteUpContext'
+import { LUMEN_LOGO_LINEAR_GRADIENT_TO_RIGHT } from '../../lib/logoGradient'
 
 export function HeaderWordProgress() {
   const { totalWords, goal, percent } = useWriteUpBodyWordStats()
@@ -27,8 +28,11 @@ export function HeaderWordProgress() {
         aria-label="Write-up word goal progress"
       >
         <div
-          className="h-full rounded-full bg-neutral-900 transition-[width] duration-300 ease-out"
-          style={{ width: `${percent}%` }}
+          className="h-full rounded-full transition-[width] duration-300 ease-out"
+          style={{
+            width: `${percent}%`,
+            background: LUMEN_LOGO_LINEAR_GRADIENT_TO_RIGHT,
+          }}
         />
       </div>
     </div>

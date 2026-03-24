@@ -3,11 +3,15 @@ import { onAuthStateChanged, signInAnonymously } from 'firebase/auth'
 import { onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore'
 import { auth } from '../lib/firebase'
 import {
+  normalizeDashboardTaskOrders,
+  sortTasksByOrder,
+} from '../lib/dashboardTasksOrder'
+import {
   getInterviewGuideDocRef,
   parseInterviewGuideFromFirestore,
   serializeInterviewGuideState,
 } from '../lib/interviewGuideFirestore'
-import type { DashboardResearchQuestion } from '../types/dashboard'
+import type { DashboardResearchQuestion, DashboardTask } from '../types/dashboard'
 import { emptyWriteUpContent, type WriteUpSectionId } from '../lib/writeUpSections'
 import type {
   InterviewGuideQuestion,
@@ -56,6 +60,7 @@ export function useInterviewGuideWorkspace() {
   const [researchAim, setResearchAim] = useState<string | undefined>(undefined)
   const [subQuestions, setSubQuestions] = useState<string[]>([])
   const [writeUpContent, setWriteUpContent] = useState(emptyWriteUpContent)
+  const [dashboardTasks, setDashboardTasks] = useState<DashboardTask[]>([])
 
   const [firestoreSyncStatus, setFirestoreSyncStatus] = useState<
     'loading' | 'ready' | 'error'
@@ -138,6 +143,7 @@ export function useInterviewGuideWorkspace() {
               subQuestions: [] as string[],
               researchAim: undefined as string | undefined,
               writeUpContent: emptyWriteUpContent(),
+              dashboardTasks: [] as DashboardTask[],
             }
         setGuideTitle(parsed.guideTitle)
         setSections(parsed.sections)
@@ -158,6 +164,7 @@ export function useInterviewGuideWorkspace() {
         setSubQuestions(parsed.subQuestions)
         setResearchAim(parsed.researchAim)
         setWriteUpContent(parsed.writeUpContent)
+        setDashboardTasks(parsed.dashboardTasks)
         lastSavedSerialized.current = serializeInterviewGuideState(
           parsed.guideTitle,
           parsed.sections,
@@ -168,6 +175,7 @@ export function useInterviewGuideWorkspace() {
           parsed.subQuestions,
           parsed.researchAim,
           parsed.writeUpContent,
+          parsed.dashboardTasks,
         )
         setFirestoreSyncStatus('ready')
         setFirestoreError(null)
@@ -198,6 +206,7 @@ export function useInterviewGuideWorkspace() {
       subQuestions,
       researchAim,
       writeUpContent,
+      dashboardTasks,
     )
     if (serialized === lastSavedSerialized.current) return
 
@@ -213,6 +222,7 @@ export function useInterviewGuideWorkspace() {
         subQuestions,
         researchAim: researchAim ?? '',
         writeUpContent,
+        dashboardTasks,
         updatedAt: serverTimestamp(),
       })
         .then(() => {
@@ -240,6 +250,7 @@ export function useInterviewGuideWorkspace() {
     subQuestions,
     researchAim,
     writeUpContent,
+    dashboardTasks,
   ])
 
   const sectionsSorted = useMemo(() => sortSections(sections), [sections])
@@ -249,6 +260,16 @@ export function useInterviewGuideWorkspace() {
   const participationRowsSorted = useMemo(
     () => sortParticipation(participationRows),
     [participationRows],
+  )
+
+  const dashboardTasksActive = useMemo(
+    () => sortTasksByOrder(dashboardTasks.filter((t) => !t.completed)),
+    [dashboardTasks],
+  )
+
+  const dashboardTasksCompleted = useMemo(
+    () => sortTasksByOrder(dashboardTasks.filter((t) => t.completed)),
+    [dashboardTasks],
   )
 
   const questionsInSelectedSection = useMemo(() => {
@@ -434,6 +455,59 @@ export function useInterviewGuideWorkspace() {
     })
   }, [])
 
+  const addDashboardTask = useCallback((text: string) => {
+    const trimmed = text.trim()
+    if (!trimmed) return
+    setDashboardTasks((prev) => {
+      const active = prev.filter((t) => !t.completed)
+      const maxOrder = active.reduce((m, t) => Math.max(m, t.order), -1)
+      const item: DashboardTask = {
+        id: newId('task'),
+        text: trimmed,
+        order: maxOrder + 1,
+        completed: false,
+      }
+      return normalizeDashboardTaskOrders([...prev, item])
+    })
+  }, [])
+
+  const updateDashboardTask = useCallback(
+    (
+      id: string,
+      patch: Partial<Pick<DashboardTask, 'text' | 'order' | 'completed'>>,
+    ) => {
+      setDashboardTasks((prev) =>
+        normalizeDashboardTaskOrders(
+          prev.map((t) => (t.id === id ? { ...t, ...patch } : t)),
+        ),
+      )
+    },
+    [],
+  )
+
+  const deleteDashboardTask = useCallback((id: string) => {
+    if (!window.confirm('Delete this task?')) return
+    setDashboardTasks((prev) =>
+      normalizeDashboardTaskOrders(prev.filter((t) => t.id !== id)),
+    )
+  }, [])
+
+  const reorderDashboardTasks = useCallback(
+    (orderedIds: string[], groupCompleted: boolean) => {
+      setDashboardTasks((prev) => {
+        const orderMap = new Map(orderedIds.map((tid, index) => [tid, index]))
+        const next = prev.map((t) => {
+          if (t.completed !== groupCompleted) return t
+          const ord = orderMap.get(t.id)
+          if (ord === undefined) return t
+          return { ...t, order: ord }
+        })
+        return normalizeDashboardTaskOrders(next)
+      })
+    },
+    [],
+  )
+
   const addParticipationRow = useCallback(
     (payload: {
       name: string
@@ -484,12 +558,13 @@ export function useInterviewGuideWorkspace() {
     [],
   )
 
-  const deleteParticipationRow = useCallback((id: string) => {
-    if (!window.confirm('Delete this row?')) return
+  const deleteParticipationRow = useCallback((id: string): boolean => {
+    if (!window.confirm('Delete this row?')) return false
     setParticipationRows((prev) => {
       const next = prev.filter((r) => r.id !== id)
       return sortParticipation(next).map((r, i) => ({ ...r, order: i }))
     })
+    return true
   }, [])
 
   const saveDashboardResearchQuestion = useCallback(
@@ -550,6 +625,9 @@ export function useInterviewGuideWorkspace() {
     questions,
     thoughts: thoughtsSorted,
     participationRows: participationRowsSorted,
+    dashboardTasks,
+    dashboardTasksActive,
+    dashboardTasksCompleted,
     questionsInSelectedSection,
     selectedSectionId,
     selectedQuestion,
@@ -569,6 +647,10 @@ export function useInterviewGuideWorkspace() {
     updateThought,
     deleteThought,
     reorderThoughts,
+    addDashboardTask,
+    updateDashboardTask,
+    deleteDashboardTask,
+    reorderDashboardTasks,
     addParticipationRow,
     updateParticipationRow,
     deleteParticipationRow,

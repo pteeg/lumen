@@ -1,4 +1,5 @@
 export const WRITE_UP_SECTIONS = [
+  { id: 'overview', label: 'Overview' },
   { id: 'abstract', label: 'Abstract' },
   { id: 'introduction', label: 'Introduction' },
   { id: 'literature-review', label: 'Literature review' },

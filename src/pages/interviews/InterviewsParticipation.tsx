@@ -1,10 +1,16 @@
-import { useEffect, useRef, useState } from 'react'
-import { DashboardCard } from '../../components/dashboard/DashboardCard'
-import { DashboardSectionLabel } from '../../components/dashboard/DashboardSectionLabel'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  DashboardCard,
+  DashboardSectionLabel,
+  InterviewProgressSection,
+  ParticipationTypeConfirmedSection,
+} from '../../components/dashboard'
 import { Button } from '../../components/ui/Button'
 import { Dialog } from '../../components/ui/Dialog'
 import { Input, Label, Select, Textarea } from '../../components/ui/Field'
 import { useInterviewGuideWorkspaceContext } from '../../context/InterviewGuideWorkspaceContext'
+import { countParticipationRowsByProgress } from '../../lib/participationProgressCounts'
+import { countParticipationByTypeConfirmed } from '../../lib/participationTypeConfirmedCounts'
 import {
   PARTICIPATION_PROGRESS_OPTIONS,
   PARTICIPATION_TYPE_OPTIONS,
@@ -172,13 +178,35 @@ export function InterviewsParticipation() {
     closeModal()
   }
 
+  function deleteFromModal() {
+    if (!editingId) return
+    if (deleteParticipationRow(editingId)) closeModal()
+  }
+
   const typeSummary =
     form.participantTypes.length === 0
       ? 'Select types…'
       : form.participantTypes.join(', ')
 
+  const interviewProgressCounts = useMemo(
+    () => countParticipationRowsByProgress(participationRows),
+    [participationRows],
+  )
+
+  const typeConfirmedStats = useMemo(
+    () => countParticipationByTypeConfirmed(participationRows),
+    [participationRows],
+  )
+
   return (
     <div className="space-y-6">
+      <InterviewProgressSection
+        progressCounts={interviewProgressCounts}
+        showSeeAllLink={false}
+      />
+
+      <ParticipationTypeConfirmedSection typeStats={typeConfirmedStats} />
+
       <DashboardCard dense>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <DashboardSectionLabel>Participation</DashboardSectionLabel>
@@ -193,7 +221,7 @@ export function InterviewsParticipation() {
               <tr>
                 <th className="px-4 py-3 font-semibold">Name</th>
                 <th className="px-4 py-3 font-semibold">Type</th>
-                <th className="px-4 py-3 font-semibold">Notes</th>
+                <th className="px-4 py-3 font-semibold">Contact</th>
                 <th className="px-4 py-3 font-semibold">Progress</th>
                 <th className="px-4 py-3 font-semibold">Date &amp; time</th>
                 <th className="px-4 py-3 font-semibold">Location</th>
@@ -238,24 +266,14 @@ export function InterviewsParticipation() {
                       </span>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 align-top">
-                      <div className="flex flex-wrap gap-1">
-                        <Button
-                          variant="ghost"
-                          type="button"
-                          className="px-2 py-1 text-xs font-medium text-neutral-600"
-                          onClick={() => openEdit(row)}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          type="button"
-                          className="px-2 py-1 text-xs text-neutral-500 hover:text-red-700"
-                          onClick={() => deleteParticipationRow(row.id)}
-                        >
-                          Delete
-                        </Button>
-                      </div>
+                      <Button
+                        variant="ghost"
+                        type="button"
+                        className="px-2 py-1 text-xs font-medium text-neutral-600"
+                        onClick={() => openEdit(row)}
+                      >
+                        Edit
+                      </Button>
                     </td>
                   </tr>
                 ))
@@ -271,18 +289,25 @@ export function InterviewsParticipation() {
         onClose={closeModal}
         panelClassName="max-w-lg"
         footer={
-          <div className="ml-auto flex flex-wrap gap-2">
-            <Button variant="secondary" type="button" onClick={closeModal}>
-              Cancel
-            </Button>
-            <Button
-              variant="dark"
-              type="button"
-              onClick={saveRow}
-              disabled={!form.name.trim()}
-            >
-              Save
-            </Button>
+          <div className="flex w-full flex-wrap items-center gap-3">
+            {editingId ? (
+              <Button variant="danger" type="button" onClick={deleteFromModal}>
+                Delete row
+              </Button>
+            ) : null}
+            <div className="ml-auto flex flex-wrap gap-2">
+              <Button variant="secondary" type="button" onClick={closeModal}>
+                Cancel
+              </Button>
+              <Button
+                variant="dark"
+                type="button"
+                onClick={saveRow}
+                disabled={!form.name.trim()}
+              >
+                Save
+              </Button>
+            </div>
           </div>
         }
       >
@@ -352,14 +377,14 @@ export function InterviewsParticipation() {
             ) : null}
           </div>
           <div>
-            <Label htmlFor="part-notes">Notes</Label>
+            <Label htmlFor="part-notes">Contact</Label>
             <Textarea
               id="part-notes"
               value={form.notes}
               onChange={(e) =>
                 setForm((f) => ({ ...f, notes: e.target.value }))
               }
-              placeholder="Context, reminders…"
+              placeholder="Email, phone, how to reach them…"
               rows={3}
             />
           </div>

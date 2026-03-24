@@ -24,3 +24,12 @@ export interface DashboardUpcomingInterview {
 export interface DashboardData {
   researchQuestion: DashboardResearchQuestion
 }
+
+/** Persisted to the interview guide doc — task list (Tasks page + Next task tile). */
+export interface DashboardTask {
+  id: string
+  text: string
+  /** Order within active tasks, or within completed tasks (separate sequences). */
+  order: number
+  completed: boolean
+}

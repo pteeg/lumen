@@ -11,6 +11,7 @@ import { InterviewsOverview } from './pages/interviews/InterviewsOverview'
 import { InterviewsParticipation } from './pages/interviews/InterviewsParticipation'
 import { InterviewsStructure } from './pages/interviews/InterviewsStructure'
 import { WriteUpLayout } from './pages/write-up/WriteUpLayout'
+import { TasksPage } from './pages/TasksPage'
 import { Thesis } from './pages/Thesis'
 import { WriteUpSectionPage } from './pages/write-up/WriteUpSectionPage'
 
@@ -22,6 +23,7 @@ export default function App() {
           <Routes>
             <Route element={<AppShell />}>
               <Route index element={<Dashboard />} />
+              <Route path="tasks" element={<TasksPage />} />
               <Route path="thesis" element={<Thesis />} />
               <Route path="interviews" element={<InterviewsLayout />}>
                 <Route index element={<InterviewsOverview />} />
@@ -45,7 +47,7 @@ export default function App() {
               <Route path="write-up" element={<WriteUpLayout />}>
                 <Route
                   index
-                  element={<Navigate to="abstract" replace />}
+                  element={<Navigate to="overview" replace />}
                 />
                 <Route path=":section" element={<WriteUpSectionPage />} />
               </Route>

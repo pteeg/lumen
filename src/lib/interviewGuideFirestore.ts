@@ -1,5 +1,7 @@
 import { doc, type DocumentReference } from 'firebase/firestore'
 import { db } from './firebase'
+import type { DashboardTask } from '../types/dashboard'
+import { normalizeDashboardTaskOrders } from './dashboardTasksOrder'
 import type {
   InterviewGuideQuestion,
   InterviewGuideSection,
@@ -24,6 +26,25 @@ function parseWriteUpContent(raw: unknown): Record<WriteUpSectionId, string> {
   return next
 }
 
+function parseDashboardTasks(raw: unknown): DashboardTask[] {
+  if (!Array.isArray(raw)) return []
+  const out: DashboardTask[] = []
+  for (const item of raw) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) continue
+    const o = item as Record<string, unknown>
+    if (typeof o.id !== 'string' || typeof o.text !== 'string') continue
+    const order =
+      typeof o.order === 'number' && Number.isFinite(o.order) ? o.order : out.length
+    out.push({
+      id: o.id,
+      text: o.text,
+      order,
+      completed: o.completed === true,
+    })
+  }
+  return normalizeDashboardTaskOrders(out)
+}
+
 export const INTERVIEW_GUIDES_COLLECTION = 'interviewGuides'
 
 export function getInterviewGuideDocRef(docId: string): DocumentReference {
@@ -42,6 +63,8 @@ export type InterviewGuideFirestorePayload = {
   researchAim?: string
   /** Write-up tab bodies keyed by section id */
   writeUpContent: Record<WriteUpSectionId, string>
+  /** Dashboard task list */
+  dashboardTasks: DashboardTask[]
 }
 
 export function serializeInterviewGuideState(
@@ -54,6 +77,7 @@ export function serializeInterviewGuideState(
   subQuestions: string[],
   researchAim: string | undefined,
   writeUpContent: Record<WriteUpSectionId, string>,
+  dashboardTasks: DashboardTask[],
 ): string {
   return JSON.stringify({
     guideTitle,
@@ -65,6 +89,7 @@ export function serializeInterviewGuideState(
     subQuestions,
     researchAim,
     writeUpContent,
+    dashboardTasks,
   })
 }
 
@@ -83,6 +108,7 @@ export function parseInterviewGuideFromFirestore(
       subQuestions: [],
       researchAim: undefined,
       writeUpContent: emptyWriteUpContent(),
+      dashboardTasks: [],
     }
   }
   const d = data as Record<string, unknown>
@@ -112,5 +138,6 @@ export function parseInterviewGuideFromFirestore(
         ? d.researchAim
         : undefined,
     writeUpContent: parseWriteUpContent(d.writeUpContent),
+    dashboardTasks: parseDashboardTasks(d.dashboardTasks),
   }
 }
