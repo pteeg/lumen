@@ -32,14 +32,6 @@ function parseInterviewDate(iso: string): Date | null {
   return Number.isNaN(d.getTime()) ? null : d
 }
 
-function formatTime(date: Date): string {
-  return date.toLocaleTimeString(undefined, {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  })
-}
-
 function monthStart(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), 1)
 }
