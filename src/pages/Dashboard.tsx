@@ -8,6 +8,7 @@ import {
 import { GreetingBar } from '../components/layout/GreetingBar'
 import { useInterviewGuideWorkspaceContext } from '../context/InterviewGuideWorkspaceContext'
 import { countParticipationRowsByProgress } from '../lib/participationProgressCounts'
+import { InterviewsCalendar } from './interviews/InterviewsCalendar'
 import {
   formatParticipationInterviewWhen,
   pickNextUpcomingParticipationRow,
@@ -57,6 +58,7 @@ export function Dashboard() {
 
       <NextTaskTile className="-mt-2 md:-mt-3" />
       <InterviewProgressSection progressCounts={interviewProgressCounts} />
+      <InterviewsCalendar />
     </div>
   )
 }

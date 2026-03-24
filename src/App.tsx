@@ -7,6 +7,7 @@ import { FindingsIndexPage } from './pages/findings/FindingsIndexPage'
 import { FindingsLayout } from './pages/findings/FindingsLayout'
 import { FindingsParticipantPage } from './pages/findings/FindingsParticipantPage'
 import { InterviewsLayout } from './pages/interviews/InterviewsLayout'
+import { InterviewsCalendar } from './pages/interviews/InterviewsCalendar'
 import { InterviewsOverview } from './pages/interviews/InterviewsOverview'
 import { InterviewsParticipation } from './pages/interviews/InterviewsParticipation'
 import { InterviewsStructure } from './pages/interviews/InterviewsStructure'
@@ -36,6 +37,7 @@ export default function App() {
                   path="participation"
                   element={<InterviewsParticipation />}
                 />
+                <Route path="calendar" element={<InterviewsCalendar />} />
               </Route>
               <Route path="findings" element={<FindingsLayout />}>
                 <Route index element={<FindingsIndexPage />} />

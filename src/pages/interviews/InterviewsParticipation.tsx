@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   DashboardCard,
   DashboardSectionLabel,
@@ -34,6 +35,17 @@ function displayProgress(stored: string): string {
   const t = stored.trim()
   if (!t) return '—'
   return t
+}
+
+function progressPillClass(progress: string): string {
+  const p = progress.trim().toLowerCase()
+  if (p === 'confirmed' || p === 'interviewed') {
+    return 'bg-green-100 text-green-700'
+  }
+  if (p === 'i need to respond' || p === 'awaiting their response') {
+    return 'bg-amber-100 text-amber-700'
+  }
+  return 'bg-neutral-100 text-neutral-700'
 }
 
 function isoToDatetimeLocalValue(iso: string): string {
@@ -83,19 +95,50 @@ const emptyForm: ParticipationFormState = {
   location: '',
 }
 
+function computeParticipationInsertIndex(
+  clientY: number,
+  without: InterviewParticipationRow[],
+  rowRefs: Map<string, HTMLElement>,
+): number {
+  for (let i = 0; i < without.length; i++) {
+    const el = rowRefs.get(without[i].id)
+    if (!el) continue
+    const rect = el.getBoundingClientRect()
+    const mid = rect.top + rect.height / 2
+    if (clientY < mid) return i
+  }
+  return without.length
+}
+
 export function InterviewsParticipation() {
   const {
     participationRows,
     addParticipationRow,
     updateParticipationRow,
     deleteParticipationRow,
+    reorderParticipationRows,
   } = useInterviewGuideWorkspaceContext()
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [detailsRow, setDetailsRow] = useState<InterviewParticipationRow | null>(null)
   const [form, setForm] = useState<ParticipationFormState>(emptyForm)
   const [typeMenuOpen, setTypeMenuOpen] = useState(false)
+  const [typeFilter, setTypeFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('all')
   const typePickerRef = useRef<HTMLDivElement>(null)
+  const [draggingRowId, setDraggingRowId] = useState<string | null>(null)
+  const [insertIndex, setInsertIndex] = useState(0)
+  const [ghostPos, setGhostPos] = useState({ x: 0, y: 0 })
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
+  const [ghostSize, setGhostSize] = useState({ width: 0, height: 0 })
+  const rowRefs = useRef<Map<string, HTMLElement>>(new Map())
+  const rowsRef = useRef(participationRows)
+  rowsRef.current = participationRows
+  const insertIndexRef = useRef(0)
+  insertIndexRef.current = insertIndex
+  const reorderRowsRef = useRef(reorderParticipationRows)
+  reorderRowsRef.current = reorderParticipationRows
 
   useEffect(() => {
     if (!typeMenuOpen) return
@@ -110,6 +153,12 @@ export function InterviewsParticipation() {
     document.addEventListener('mousedown', onDocDown)
     return () => document.removeEventListener('mousedown', onDocDown)
   }, [typeMenuOpen])
+
+  const setRowRef = useCallback((id: string, el: HTMLElement | null) => {
+    const m = rowRefs.current
+    if (el) m.set(id, el)
+    else m.delete(id)
+  }, [])
 
   function openAdd() {
     setEditingId(null)
@@ -183,6 +232,75 @@ export function InterviewsParticipation() {
     if (deleteParticipationRow(editingId)) closeModal()
   }
 
+  function handleRowPointerDown(
+    e: React.PointerEvent<HTMLButtonElement>,
+    row: InterviewParticipationRow,
+  ) {
+    if (e.button !== 0) return
+    e.preventDefault()
+    e.stopPropagation()
+    const el = rowRefs.current.get(row.id)
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const list = rowsRef.current
+    const startIdx = list.findIndex((x) => x.id === row.id)
+    if (startIdx < 0) return
+
+    setDragOffset({ x: e.clientX - rect.left, y: e.clientY - rect.top })
+    setGhostSize({ width: rect.width, height: rect.height })
+    setGhostPos({ x: e.clientX, y: e.clientY })
+    setInsertIndex(startIdx)
+    insertIndexRef.current = startIdx
+    setDraggingRowId(row.id)
+
+    const draggedId = row.id
+
+    function onMove(ev: PointerEvent) {
+      setGhostPos({ x: ev.clientX, y: ev.clientY })
+      const current = rowsRef.current
+      const without = current.filter((x) => x.id !== draggedId)
+      const next = computeParticipationInsertIndex(
+        ev.clientY,
+        without,
+        rowRefs.current,
+      )
+      setInsertIndex(next)
+      insertIndexRef.current = next
+    }
+
+    function cleanupListeners() {
+      window.removeEventListener('pointermove', onMove, true)
+      window.removeEventListener('pointerup', onUp, true)
+      window.removeEventListener('pointercancel', onCancel, true)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+
+    function onUp() {
+      cleanupListeners()
+      const without = rowsRef.current.filter((x) => x.id !== draggedId)
+      const idx = insertIndexRef.current
+      const orderedIds = [
+        ...without.slice(0, idx).map((x) => x.id),
+        draggedId,
+        ...without.slice(idx).map((x) => x.id),
+      ]
+      reorderRowsRef.current(orderedIds)
+      setDraggingRowId(null)
+    }
+
+    function onCancel() {
+      cleanupListeners()
+      setDraggingRowId(null)
+    }
+
+    document.body.style.cursor = 'grabbing'
+    document.body.style.userSelect = 'none'
+    window.addEventListener('pointermove', onMove, { capture: true })
+    window.addEventListener('pointerup', onUp, { capture: true })
+    window.addEventListener('pointercancel', onCancel, { capture: true })
+  }
+
   const typeSummary =
     form.participantTypes.length === 0
       ? 'Select types…'
@@ -197,6 +315,61 @@ export function InterviewsParticipation() {
     () => countParticipationByTypeConfirmed(participationRows),
     [participationRows],
   )
+
+  const filteredRows = useMemo(() => {
+    return participationRows.filter((row) => {
+      const rowTypes = sanitizeParticipantTypes(row.participantTypes)
+      const typeMatches =
+        typeFilter === 'all' ? true : rowTypes.includes(typeFilter)
+      const statusMatches =
+        statusFilter === 'all'
+          ? true
+          : normalizeProgressForForm(row.progress) === statusFilter
+      return typeMatches && statusMatches
+    })
+  }, [participationRows, statusFilter, typeFilter])
+  const filtersActive = typeFilter !== 'all' || statusFilter !== 'all'
+
+  const draggedRow = draggingRowId
+    ? participationRows.find((r) => r.id === draggingRowId) ?? null
+    : null
+  const rowsWithoutDragged = draggingRowId
+    ? participationRows.filter((r) => r.id !== draggingRowId)
+    : participationRows
+  const previewSlots: Array<
+    { kind: 'placeholder' } | { kind: 'row'; row: InterviewParticipationRow }
+  > = []
+  if (draggingRowId) {
+    for (let i = 0; i < rowsWithoutDragged.length; i++) {
+      if (i === insertIndex) previewSlots.push({ kind: 'placeholder' })
+      previewSlots.push({ kind: 'row', row: rowsWithoutDragged[i] })
+    }
+    if (insertIndex === rowsWithoutDragged.length) {
+      previewSlots.push({ kind: 'placeholder' })
+    }
+  }
+
+  useEffect(() => {
+    if (filtersActive && draggingRowId) setDraggingRowId(null)
+  }, [filtersActive, draggingRowId])
+
+  const dragGhost =
+    draggingRowId && draggedRow && ghostSize.width > 0 ? (
+      <div
+        className="pointer-events-none fixed z-[9999] rounded-xl border border-neutral-200/80 bg-white px-4 py-3 shadow-lg ring-2 ring-neutral-300/40"
+        style={{
+          left: ghostPos.x - dragOffset.x,
+          top: ghostPos.y - dragOffset.y,
+          width: ghostSize.width,
+          minHeight: ghostSize.height,
+        }}
+        aria-hidden
+      >
+        <p className="truncate text-sm font-medium text-neutral-900">
+          {draggedRow.name || '—'}
+        </p>
+      </div>
+    ) : null
 
   return (
     <div className="space-y-6">
@@ -215,73 +388,237 @@ export function InterviewsParticipation() {
           </Button>
         </div>
 
-        <div className="mt-4 overflow-x-auto rounded-xl border border-neutral-200/80">
-          <table className="w-full min-w-[800px] text-left text-sm">
-            <thead className="border-b border-neutral-200 bg-neutral-50/90 text-[11px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
-              <tr>
-                <th className="px-4 py-3 font-semibold">Name</th>
-                <th className="px-4 py-3 font-semibold">Type</th>
-                <th className="px-4 py-3 font-semibold">Contact</th>
-                <th className="px-4 py-3 font-semibold">Progress</th>
-                <th className="px-4 py-3 font-semibold">Date &amp; time</th>
-                <th className="px-4 py-3 font-semibold">Location</th>
-                <th className="px-4 py-3 font-semibold"> </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-100">
-              {participationRows.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={7}
-                    className="px-4 py-10 text-center text-sm text-neutral-500"
-                  >
-                    No rows yet. Use Add row to track interviews.
-                  </td>
-                </tr>
-              ) : (
-                participationRows.map((row) => (
-                  <tr key={row.id} className="bg-white">
-                    <td className="max-w-[140px] px-4 py-3 align-top font-medium text-neutral-900">
-                      {row.name}
-                    </td>
-                    <td className="max-w-[200px] px-4 py-3 align-top text-neutral-700">
-                      <span className="line-clamp-3 break-words">
-                        {formatTypes(sanitizeParticipantTypes(row.participantTypes))}
-                      </span>
-                    </td>
-                    <td className="max-w-[220px] px-4 py-3 align-top text-neutral-700">
-                      <span className="line-clamp-4 whitespace-pre-wrap break-words">
-                        {row.notes || '—'}
-                      </span>
-                    </td>
-                    <td className="min-w-[10rem] max-w-[220px] px-4 py-3 align-top text-neutral-700">
-                      {displayProgress(row.progress)}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 align-top text-neutral-700">
-                      {formatInterviewDateTime(row.interviewDateTime)}
-                    </td>
-                    <td className="max-w-[160px] px-4 py-3 align-top text-neutral-700">
-                      <span className="line-clamp-3 break-words">
-                        {row.location || '—'}
-                      </span>
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 align-top">
-                      <Button
-                        variant="ghost"
+        <div className="mt-4 overflow-x-auto">
+          <div className="mb-3 flex flex-wrap items-end gap-3">
+            <div className="min-w-[180px]">
+              <Label htmlFor="part-filter-type">Filter by type</Label>
+              <Select
+                id="part-filter-type"
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+              >
+                <option value="all">All types</option>
+                {PARTICIPATION_TYPE_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="min-w-[180px]">
+              <Label htmlFor="part-filter-status">Filter by status</Label>
+              <Select
+                id="part-filter-status"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="all">All statuses</option>
+                {PARTICIPATION_PROGRESS_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            {(typeFilter !== 'all' || statusFilter !== 'all') && (
+              <Button
+                type="button"
+                variant="ghost"
+                className="mb-0.5 text-sm"
+                onClick={() => {
+                  setTypeFilter('all')
+                  setStatusFilter('all')
+                }}
+              >
+                Clear filters
+              </Button>
+            )}
+          </div>
+
+          <div className="w-[980px] max-w-full space-y-2">
+            {filteredRows.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-neutral-200/90 bg-neutral-50/40 px-4 py-10 text-center text-sm text-neutral-500">
+                {participationRows.length === 0
+                  ? 'No rows yet. Use Add row to track interviews.'
+                  : 'No participants match the selected filters.'}
+              </div>
+            ) : (
+              <>
+                {(draggingRowId
+                  ? previewSlots
+                  : filtersActive
+                    ? filteredRows
+                    : participationRows
+                ).map((slot, idx) => {
+                  if ('kind' in slot && slot.kind === 'placeholder') {
+                    return (
+                      <div
+                        key={`part-ph-${idx}`}
+                        className="rounded-xl border-2 border-dashed border-neutral-300/90 bg-neutral-50/50"
+                        style={{ minHeight: ghostSize.height || 74 }}
+                        aria-hidden
+                      />
+                    )
+                  }
+                  const row = 'kind' in slot ? slot.row : slot
+                  return (
+                    <div
+                      key={row.id}
+                      ref={(el) => setRowRef(row.id, el)}
+                      className="group grid grid-cols-[32px_minmax(0,2fr)_minmax(0,1.5fr)_minmax(0,1.5fr)_minmax(0,1.4fr)] items-start gap-x-4 rounded-xl border border-neutral-200/80 bg-white px-4 py-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+                    >
+                      <button
                         type="button"
-                        className="px-2 py-1 text-xs font-medium text-neutral-600"
-                        onClick={() => openEdit(row)}
+                        aria-label="Drag to reorder participant"
+                        onPointerDown={(e) => handleRowPointerDown(e, row)}
+                        onClick={(e) => e.stopPropagation()}
+                        disabled={filtersActive}
+                        className="inline-flex h-8 w-8 items-center justify-center justify-self-center touch-none cursor-grab rounded-md text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 active:cursor-grabbing"
                       >
-                        Edit
-                      </Button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                        <span
+                          aria-hidden
+                          className="inline-block select-none text-lg leading-none tracking-tighter"
+                        >
+                          ⋮⋮
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setDetailsRow(row)}
+                        className="col-start-2 col-end-[-1] grid min-w-0 grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_minmax(0,1.5fr)_minmax(0,1.4fr)] items-center gap-x-4 text-left"
+                      >
+                        <div className="min-w-0 flex flex-col">
+                          <span className="min-w-0 truncate text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-400">
+                            Name
+                          </span>
+                          <span className="min-w-0 truncate text-sm font-medium text-neutral-900">
+                            {row.name || '—'}
+                          </span>
+                        </div>
+
+                        <div className="min-w-0 flex flex-col">
+                          <span className="min-w-0 truncate text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-400">
+                            Type
+                          </span>
+                          <span className="min-w-0 truncate text-sm text-neutral-800">
+                            {formatTypes(sanitizeParticipantTypes(row.participantTypes))}
+                          </span>
+                        </div>
+
+                        <div className="min-w-0 flex flex-col items-start">
+                          <span className="min-w-0 truncate text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-400">
+                            Status
+                          </span>
+                          <span
+                            className={`inline-flex w-fit min-w-0 max-w-full items-center overflow-hidden text-ellipsis whitespace-nowrap rounded-full px-2.5 py-0.5 text-sm font-medium ${progressPillClass(row.progress)}`}
+                          >
+                            {displayProgress(row.progress)}
+                          </span>
+                        </div>
+
+                        <div className="min-w-0">
+                          <div className="min-w-0 flex flex-col">
+                            <span className="min-w-0 truncate text-[10px] font-semibold uppercase tracking-[0.12em] text-neutral-400">
+                              Interview date
+                            </span>
+                            <span className="min-w-0 truncate text-sm text-neutral-800">
+                              {formatInterviewDateTime(row.interviewDateTime)}
+                            </span>
+                          </div>
+                        </div>
+                      </button>
+                    </div>
+                  )
+                })}
+              </>
+            )}
+          </div>
         </div>
       </DashboardCard>
+
+      {typeof document !== 'undefined' && dragGhost
+        ? createPortal(dragGhost, document.body)
+        : null}
+
+      <Dialog
+        open={detailsRow != null}
+        title="Participant details"
+        onClose={() => setDetailsRow(null)}
+        panelClassName="max-w-xl"
+        footer={
+          <div className="ml-auto flex flex-wrap gap-2">
+            {detailsRow ? (
+              <Button
+                variant="secondary"
+                type="button"
+                onClick={() => {
+                  setDetailsRow(null)
+                  openEdit(detailsRow)
+                }}
+              >
+                Edit
+              </Button>
+            ) : null}
+            <Button variant="dark" type="button" onClick={() => setDetailsRow(null)}>
+              Close
+            </Button>
+          </div>
+        }
+      >
+        {detailsRow ? (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
+                Name
+              </p>
+              <p className="mt-1 text-sm text-neutral-900">{detailsRow.name || '—'}</p>
+            </div>
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
+                Type
+              </p>
+              <p className="mt-1 text-sm text-neutral-900">
+                {formatTypes(sanitizeParticipantTypes(detailsRow.participantTypes))}
+              </p>
+            </div>
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
+                Contact
+              </p>
+              <p className="mt-1 whitespace-pre-wrap text-sm text-neutral-900">
+                {detailsRow.notes || '—'}
+              </p>
+            </div>
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
+                Status
+              </p>
+              <span
+                className={`mt-1 inline-flex rounded-full px-2.5 py-0.5 text-sm font-medium ${progressPillClass(detailsRow.progress)}`}
+              >
+                {displayProgress(detailsRow.progress)}
+              </span>
+            </div>
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
+                Interview date
+              </p>
+              <p className="mt-1 text-sm text-neutral-900">
+                {formatInterviewDateTime(detailsRow.interviewDateTime)}
+              </p>
+            </div>
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-neutral-500">
+                Location
+              </p>
+              <p className="mt-1 text-sm text-neutral-900">
+                {detailsRow.location || '—'}
+              </p>
+            </div>
+          </div>
+        ) : null}
+      </Dialog>
 
       <Dialog
         open={modalOpen}

@@ -19,6 +19,9 @@ export function InterviewPageTabs() {
       <NavLink to="/interviews/participation" className={tabClass}>
         Participation
       </NavLink>
+      <NavLink to="/interviews/calendar" className={tabClass}>
+        Calendar
+      </NavLink>
     </div>
   )
 }

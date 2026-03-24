@@ -567,6 +567,17 @@ export function useInterviewGuideWorkspace() {
     return true
   }, [])
 
+  const reorderParticipationRows = useCallback((orderedIds: string[]) => {
+    setParticipationRows((prev) => {
+      const orderMap = new Map(orderedIds.map((id, index) => [id, index]))
+      return prev.map((r) => {
+        const ord = orderMap.get(r.id)
+        if (ord === undefined) return r
+        return { ...r, order: ord }
+      })
+    })
+  }, [])
+
   const saveDashboardResearchQuestion = useCallback(
     (next: DashboardResearchQuestion) => {
       const main = next.mainQuestion.trim()
@@ -654,6 +665,7 @@ export function useInterviewGuideWorkspace() {
     addParticipationRow,
     updateParticipationRow,
     deleteParticipationRow,
+    reorderParticipationRows,
     researchQuestion,
     researchAim,
     subQuestions,

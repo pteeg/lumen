@@ -8,7 +8,7 @@ import type { DashboardTask } from '../../types/dashboard'
 import { DashboardCard } from '../dashboard/DashboardCard'
 import { DashboardSectionLabel } from '../dashboard/DashboardSectionLabel'
 
-type TaskTab = 'current' | 'completed'
+type TaskTab = 'current' | 'completed' | 'sparks'
 
 function computeTaskInsertIndex(
   clientY: number,
@@ -45,7 +45,11 @@ export function TasksManager() {
   const [tab, setTab] = useState<TaskTab>('current')
 
   const visibleTasks =
-    tab === 'current' ? dashboardTasksActive : dashboardTasksCompleted
+    tab === 'current'
+      ? dashboardTasksActive
+      : tab === 'completed'
+        ? dashboardTasksCompleted
+        : []
 
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null)
   const [insertIndex, setInsertIndex] = useState(0)
@@ -280,6 +284,7 @@ export function TasksManager() {
     tab === 'completed' &&
     visibleTasks.length === 0 &&
     !draggingTaskId
+  const emptySparks = tab === 'sparks'
 
   return (
     <>
@@ -319,6 +324,15 @@ export function TasksManager() {
           >
             Completed tasks
           </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'sparks'}
+            className={tabBtnClass(tab === 'sparks')}
+            onClick={() => setTab('sparks')}
+          >
+            Sparks
+          </button>
         </div>
 
         <ul className="mt-4 space-y-3" role="tabpanel">
@@ -329,6 +343,10 @@ export function TasksManager() {
           ) : emptyCompleted ? (
             <li className="rounded-xl border border-dashed border-neutral-200/90 bg-neutral-50/40 px-4 py-8 text-center text-sm text-neutral-500">
               No completed tasks yet.
+            </li>
+          ) : emptySparks ? (
+            <li className="rounded-xl border border-dashed border-neutral-200/90 bg-neutral-50/40 px-4 py-8 text-center text-sm text-neutral-500">
+              No sparks yet.
             </li>
           ) : draggingTaskId ? (
             previewSlots.map((slot, slotIndex) => {
